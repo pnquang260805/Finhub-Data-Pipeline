@@ -1,0 +1,6 @@
+/venv
+/docker-data
+.env
+**/.idea
+**/note.txt
+**/*.json
