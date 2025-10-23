@@ -1,1 +1,182 @@
-# Flink (chỉ dùng sql thuần) / Spark (có các hàm hỗ trợ) (Query engine), MinIO (Storage), Hudi (Table metadata), Hive metastore (Gevernance), Kafka
+networks:
+  project-net:
+    driver: bridge
+
+services:
+  kafka:
+    image: apache/kafka:4.0.1
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      # - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_LISTENERS=PLAINTEXT_INTERNAL://0.0.0.0:29092,PLAINTEXT_EXTERNAL://0.0.0.0:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT_INTERNAL://kafka:29092,PLAINTEXT_EXTERNAL://localhost:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT_INTERNAL
+      # <node.id>@<host>:<controller_port> -> thành viên với node.id trên <host>:<controller_port> tham gia vote
+      # nếu chạy nhiều node KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
+      # Mọi node đóng vai trò controller đều phải có KAFKA_CONTROLLER_QUORUM_VOTERS
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+    networks:
+      - project-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  kafdrop:
+    image: obsidiandynamics/kafdrop:4.2.0
+    container_name: kafdrop
+    ports:
+      - "9020:9000"
+    environment:
+      - KAFKA_BROKERCONNECT=kafka:9092
+      # - JVM_OPTS="-Xms32M -Xmx64M"
+    networks:
+      - project-net
+  
+  jobmanager:
+    build: 
+      context: .
+      dockerfile: ./dockerfiles/flink.dockerfile
+    container_name: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+    networks:
+      - project-net
+    ports:
+      - "8081:8081"
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 1gb
+    command: jobmanager
+    volumes:
+      - ./:/opt/flink/jobs
+
+  taskmanager:
+    build: 
+      context: .
+      dockerfile: ./dockerfiles/flink.dockerfile
+    container_name: taskmanager
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+    networks:
+      - project-net
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 1gb
+    
+  kafka-init:
+    image: apache/kafka:4.1.0
+    depends_on:
+      - kafka
+    command: |
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic trade_topic --bootstrap-server kafka:9092 ;
+    networks:
+      - project-net
+  minio:
+    image: minio/minio
+    container_name: minio
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=password
+      - MINIO_DOMAIN=minio
+    networks:
+      - project-net
+    ports:
+      - "9001:9001"
+      - "9000:9000"
+    command: ["server", "/data", "--console-address", ":9001"]
+    volumes:
+      - ./docker-data/minio:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1g
+    
+  mc:
+    depends_on:
+      - minio
+    image: minio/mc
+    container_name: mc
+    networks:
+      - project-net
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+    entrypoint: |
+      /bin/sh -c "
+      until (/usr/bin/mc alias set minio http://minio:9000 admin password) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc mb --ignore-existing minio/bronze;
+      /usr/bin/mc anonymous set public minio/bronze;
+      /usr/bin/mc mb --ignore-existing minio/silver;
+      /usr/bin/mc anonymous set public minio/silver;
+      /usr/bin/mc mb --ignore-existing minio/gold;
+      /usr/bin/mc anonymous set public minio/gold;
+      tail -f /dev/null
+      "
+
+  mariadb:
+    hostname: mariadb
+    container_name: mariadb
+    image: mariadb:10.5.8
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+      MYSQL_DATABASE: metastore_db
+    networks:
+      project-net:  
+    volumes:
+      - ./conf/mysql.cnf:/etc/mysql/conf.d/custom.cnf
+      - ./docker-data/metastore:/var/lib/mysql
+
+  hive-metastore:
+    hostname: hive-metastore
+    container_name: hive-metastore
+    image: 'bitsondatadev/hive-metastore:latest'
+    ports:
+      - '9083:9083' # Metastore Thrift
+    volumes:
+      - ./conf/metastore-site.xml:/opt/apache-hive-metastore-3.0.0-bin/conf/metastore-site.xml:ro
+    environment:
+      METASTORE_DB_HOSTNAME: mariadb
+    depends_on:
+      - mariadb
+    networks:
+      project-net: 
+
+  nifi:
+    image: apache/nifi:2.4.0
+    container_name: nifi
+    networks:
+      - project-net
+    ports:
+      - "8443:8443"
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=nifi1234@Abc
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1g

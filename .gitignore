@@ -4,3 +4,5 @@
 **/.idea
 **/note.txt
 **/*.json
+test*
+/jars
