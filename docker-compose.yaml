@@ -38,9 +38,9 @@ services:
       # - JVM_OPTS="-Xms32M -Xmx64M"
     networks:
       - project-net
-  
+
   jobmanager:
-    build: 
+    build:
       context: .
       dockerfile: ./dockerfiles/flink.dockerfile
     container_name: jobmanager
@@ -48,6 +48,11 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 1
     networks:
       - project-net
     ports:
@@ -62,7 +67,7 @@ services:
       - ./:/opt/flink/jobs
 
   taskmanager:
-    build: 
+    build:
       context: .
       dockerfile: ./dockerfiles/flink.dockerfile
     container_name: taskmanager
@@ -73,6 +78,8 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 1
     networks:
       - project-net
     deploy:
@@ -80,13 +87,14 @@ services:
         limits:
           cpus: 1
           memory: 1gb
-    
+
   kafka-init:
     image: apache/kafka:4.1.0
     depends_on:
       - kafka
     command: |
-      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic trade-topic --bootstrap-server kafka:29092 ;
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic raw-trade-topic --bootstrap-server kafka:29092 ;
+      /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic processed-trade-topic --bootstrap-server kafka:29092 ;
     networks:
       - project-net
   minio:
@@ -101,7 +109,7 @@ services:
     ports:
       - "9001:9001"
       - "9000:9000"
-    command: ["server", "/data", "--console-address", ":9001"]
+    command: [ "server", "/data", "--console-address", ":9001" ]
     volumes:
       - ./docker-data/minio:/data
     deploy:
@@ -109,7 +117,7 @@ services:
         limits:
           cpus: '0.5'
           memory: 1g
-    
+
   mc:
     depends_on:
       - minio
@@ -145,7 +153,7 @@ services:
       MYSQL_PASSWORD: admin
       MYSQL_DATABASE: metastore_db
     networks:
-      project-net:  
+      project-net:
     volumes:
       - ./conf/mysql.cnf:/etc/mysql/conf.d/custom.cnf
       - ./docker-data/metastore:/var/lib/mysql
@@ -163,7 +171,8 @@ services:
     depends_on:
       - mariadb
     networks:
-      project-net: 
+      project-net:
+
 
   nifi:
     image: apache/nifi:2.4.0
