@@ -3,7 +3,8 @@
 .env
 **/.idea
 **/note.txt
-**/*.json
+# **/*.json
 test*
 /jars
 **/__pycache__/
+.vscode/
