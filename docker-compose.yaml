@@ -175,6 +175,29 @@ services:
     networks:
       project-net:
 
+  redis:
+    container_name: redis
+    image: redis:8.2.2
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./docker-data/redis:/data
+    command: [ "redis-server", "--appendonly", "yes" ]
+    networks:
+      project-net:
+
+  redis-api:
+    container_name: redis-api
+    build:
+      context: ./redis
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8000"
+    depends_on:
+      - redis
+    networks:
+      project-net:
+
 
   nifi:
     image: apache/nifi:2.4.0
