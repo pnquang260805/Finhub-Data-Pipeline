@@ -16,7 +16,8 @@ producer = Producer(conf)
 
 load_dotenv()
 
-API_KEY = os.getenv("FINHUB_TOKEN")
+API_KEY = os.getenv("FINNHUB_TOKEN")
+print(API_KEY)
 
 topic = "raw-trade-topic"
 
@@ -34,6 +35,7 @@ def on_message(ws, message):
         data = json.loads(message)
         if data["type"] != "ping":
             serialized = json.dumps(data)
+            print(data)
             try:
                 producer.produce(topic, value=serialized,
                                  callback=delivery_report)

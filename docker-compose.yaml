@@ -56,6 +56,7 @@ services:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
       - | 
         FLINK_PROPERTIES=jobmanager.rpc.address: jobmanager
+      - JVM_ARGS=--add-opens=java.base/java.util=ALL-UNNAMED
     deploy:
       resources:
         limits:

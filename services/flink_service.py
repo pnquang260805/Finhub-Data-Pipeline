@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from typing import *
 
-from pyflink.table import TableEnvironment, EnvironmentSettings
+from pyflink.table import TableEnvironment, EnvironmentSettings, StreamTableEnvironment
+from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.common import Configuration
 
 
@@ -19,5 +20,8 @@ class FlinkService:
         for k, v in self.settings.items():
             config.set_string(k, v)
         env_settings = EnvironmentSettings.in_streaming_mode()
-        self.t_env = TableEnvironment.create(environment_settings=env_settings)
-        self.t_env.get_config().add_configuration(config)
+        self.env =StreamExecutionEnvironment.get_execution_environment()
+        self.env.configure(config)
+
+        self.t_env = StreamTableEnvironment.create(environment_settings=env_settings)
+        # self.t_env.get_config().add_configuration(config)
