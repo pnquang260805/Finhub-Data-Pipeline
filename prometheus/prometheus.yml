@@ -4,8 +4,8 @@ global:
 scrape_configs:
   - job_name: jobmanager
     static_configs:
-      - targets: ['jobmanager:9999']
+      - targets: ['jobmanager:9091']
 
   - job_name: taskmanager
     static_configs:
-      - targets: [ 'taskmanager:9999' ]
+      - targets: [ 'taskmanager:9091' ]

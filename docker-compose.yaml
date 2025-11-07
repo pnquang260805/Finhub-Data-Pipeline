@@ -42,23 +42,20 @@ services:
       - project-net
 
   jobmanager:
+    hostname: jobmanager
     build:
       context: .
       dockerfile: ./dockerfiles/flink.dockerfile
     container_name: jobmanager
-    environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 4
-        parallelism.default: 1
-        metrics.reporters: prom
-        metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
-        metrics.reporter.prom.port: 9999
     networks:
       - project-net
     ports:
       - "8081:8081"
+      - "9249:9249"
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - | 
+        FLINK_PROPERTIES=jobmanager.rpc.address: jobmanager
     deploy:
       resources:
         limits:
@@ -67,6 +64,7 @@ services:
     command: jobmanager
     volumes:
       - ./:/opt/flink/jobs
+      - ./conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
 
   taskmanager:
     build:
@@ -76,15 +74,8 @@ services:
     depends_on:
       - jobmanager
     command: taskmanager
-    environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 4
-        parallelism.default: 1
-        metrics.reporters: prom
-        metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
-        metrics.reporter.prom.port: 9999
+    volumes:
+      - ./conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
     networks:
       - project-net
     deploy:
