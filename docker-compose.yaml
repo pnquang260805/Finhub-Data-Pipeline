@@ -50,11 +50,11 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 4
         parallelism.default: 1
+        metrics.reporters: prom
+        metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+        metrics.reporter.prom.port: 9999
     networks:
       - project-net
     ports:
@@ -82,6 +82,9 @@ services:
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 4
         parallelism.default: 1
+        metrics.reporters: prom
+        metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+        metrics.reporter.prom.port: 9999
     networks:
       - project-net
     deploy:
@@ -214,3 +217,38 @@ services:
         limits:
           cpus: '1'
           memory: 1g
+
+  node_exporter:
+    image: prom/node-exporter:v1.10.2
+    container_name: node_exporter
+    command:
+      - '--path.rootfs=/host'
+    pid: host
+    volumes:
+      - '/:/host:ro'
+    networks:
+      - project-net
+
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      # Take up prometheus config file
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./docker-data/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - project-net
+
+  grafana:
+    image: grafana/grafana:12.3.0-19020365962
+    container_name: grafana
+    volumes:
+      - ./docker-data/grafana:/var/lib/grafana
+    ports:
+      - "5000:3000"
+    networks:
+      - project-net
