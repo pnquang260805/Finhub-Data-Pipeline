@@ -42,23 +42,21 @@ services:
       - project-net
 
   jobmanager:
+    hostname: jobmanager
     build:
       context: .
       dockerfile: ./dockerfiles/flink.dockerfile
     container_name: jobmanager
-    environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: jobmanager
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 4
-        parallelism.default: 1
     networks:
       - project-net
     ports:
       - "8081:8081"
+      - "9249:9249"
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - | 
+        FLINK_PROPERTIES=jobmanager.rpc.address: jobmanager
+      - JVM_ARGS=--add-opens=java.base/java.util=ALL-UNNAMED
     deploy:
       resources:
         limits:
@@ -67,6 +65,7 @@ services:
     command: jobmanager
     volumes:
       - ./:/opt/flink/jobs
+      - ./conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
 
   taskmanager:
     build:
@@ -76,12 +75,8 @@ services:
     depends_on:
       - jobmanager
     command: taskmanager
-    environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 4
-        parallelism.default: 1
+    volumes:
+      - ./conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
     networks:
       - project-net
     deploy:
@@ -214,3 +209,46 @@ services:
         limits:
           cpus: '1'
           memory: 1g
+
+  node_exporter:
+    image: prom/node-exporter:v1.10.2
+    container_name: node_exporter
+    command:
+      - '--path.rootfs=/host'
+    pid: host
+    volumes:
+      - '/:/host:ro'
+    networks:
+      - project-net
+
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      # Take up prometheus config file
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./docker-data/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - project-net
+
+  grafana:
+    image: grafana/grafana:12.3.0-19020365962
+    container_name: grafana
+    volumes:
+      - ./docker-data/grafana:/var/lib/grafana
+    ports:
+      - "5000:3000"
+    networks:
+      - project-net
+
+  pushgateway:
+    image: prom/pushgateway:v1.11.2
+    container_name: pushgateway
+    networks:
+      - project-net
+    ports:
+      - "9091:9091"
