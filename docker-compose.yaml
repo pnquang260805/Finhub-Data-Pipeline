@@ -244,3 +244,11 @@ services:
       - "5000:3000"
     networks:
       - project-net
+
+  pushgateway:
+    image: prom/pushgateway:v1.11.2
+    container_name: pushgateway
+    networks:
+      - project-net
+    ports:
+      - "9091:9091"
