@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 
 from services.trade_handler import TradeHandler
+from schema.kafka_source_schema import KafkaSchema
 
 load_dotenv()
 
@@ -31,9 +32,13 @@ settings = {
 }
 
 kafka_broker = "kafka:29092"
+kafka_schema = KafkaSchema()
 
 handler = TradeHandler(jars_path=full_path,
-                       settings=settings, kafka_broker=kafka_broker)
+                       settings=settings,
+                       kafka_broker=kafka_broker,
+                       kafka_schema=kafka_schema)
 input_topic = "raw-trade-topic"
 preprocess_topic = "preprocess"
-handler.process_trades_with_prometheus(input_topic=input_topic, output_topic=preprocess_topic)
+preprocess_data = handler.process_trades_with_prometheus(input_topic=input_topic, output_topic=preprocess_topic)
+preprocess_data.execute().wait()

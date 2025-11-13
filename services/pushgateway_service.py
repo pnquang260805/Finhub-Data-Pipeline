@@ -8,5 +8,5 @@ class PushgatewayService:
     def get_registry(self):
         return self.registry
 
-    def push_metric(self, job: str = "default_job", ):
+    def push_metric(self, job: str = "default_job"):
         push_to_gateway(self.gateway, job=job, registry=self.registry)

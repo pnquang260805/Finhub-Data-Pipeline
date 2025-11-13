@@ -1,7 +1,4 @@
 from pyflink.table import EnvironmentSettings, TableEnvironment, TableDescriptor, Schema, DataTypes, FormatDescriptor
-from pyflink.datastream.connectors.kafka import KafkaSource, KafkaSink, KafkaOffsetsInitializer, KafkaRecordSerializationSchema
-from pyflink.common.serialization import SimpleStringSchema
-from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.common import Configuration
 
 flink_kafka_connector_path = "file:///opt/flink/usrlib/flink-sql-connector-kafka-4.0.1-2.0.jar"
