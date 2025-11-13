@@ -10,3 +10,4 @@ test*
 .vscode/
 *.zip
 send_kafka.py
+log
