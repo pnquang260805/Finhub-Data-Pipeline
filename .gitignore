@@ -11,3 +11,9 @@ test*
 *.zip
 send_kafka.py
 log
+# Ignore Gradle project-specific cache directory
+**/.gradle
+
+# Ignore Gradle build output directory
+**/build
+**/pytest_cache
