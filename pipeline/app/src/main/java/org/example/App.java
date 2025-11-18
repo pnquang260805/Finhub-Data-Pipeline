@@ -3,12 +3,31 @@
  */
 package org.example;
 
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
+
 public class App {
     public String getGreeting() {
         return "Hello World!";
     }
 
-    public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env); // Convert Data Stream to Table
+
+        DataStream<String> ds = env.fromElements("a", "b");
+
+        Table inputTable = tEnv.fromDataStream(ds);
+
+        tEnv.createTemporaryView("temp_view", inputTable);
+        String query = "SELECT UPPER(f0) FROM temp_view";
+        Table result = tEnv.sqlQuery(query);
+        DataStream<Row> resultStream = tEnv.toDataStream(result);
+        resultStream.print();
+        env.execute();
     }
 }
