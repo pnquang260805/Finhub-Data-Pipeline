@@ -13,11 +13,4 @@ RUN wget -P /opt/flink/lib https://repo1.maven.org/maven2/org/apache/flink/flink
 
 USER root
 
-RUN apt-get update -y && \
-    apt-get install python3 python3-pip -y
-RUN ln -s /usr/bin/python3 /usr/bin/python
-COPY ./requirements.txt .
-RUN pip install -r ./requirements.txt --no-cache-dir
-
-
 USER flink
