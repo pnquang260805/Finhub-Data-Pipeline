@@ -2,6 +2,7 @@ package org.example;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -15,7 +16,16 @@ import org.example.Shema.KafkaSchema;
 
 public class App {
     public static void main(String[] args) throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final String ACCESS_KEY = "admin";
+        final String SECRET_KEY = "password";
+
+        Configuration conf = new Configuration();
+        conf.setString("fs.s3a.access.key", ACCESS_KEY);
+        conf.setString("fs.s3a.secret.key", SECRET_KEY);
+        conf.setString("fs.s3a.endpoint", "http://minio:9000");
+        conf.setString("fs.s3a.path.style.access", "true");
+        conf.setString("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"); // !!!
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
 
@@ -25,31 +35,23 @@ public class App {
         String sourceTableName = "source_table";
         String outputTableName = "preprocessed_table";
 
-        KafkaSource<String> kafkaSource = KafkaSource.<String>builder()
-                .setBootstrapServers(bootstrapServer)
-                .setTopics(inputTopic)
-                .setGroupId("foo")
-                .setStartingOffsets(OffsetsInitializer.latest())
-                .setValueOnlyDeserializer(new SimpleStringSchema())
-                .build();
-
         KafkaSchema kafkaSchema = new KafkaSchema();
         tEnv.createTemporaryTable(sourceTableName, TableDescriptor.forConnector("kafka")
                 .schema(kafkaSchema.kafkaSourceSchema())
                 .option("topic", inputTopic)
                 .option("properties.bootstrap.servers", bootstrapServer)
-                .option("scan.startup.mode", "latest-offset")
+                .option("scan.startup.mode", "earliest-offset")
                 .format(FormatDescriptor.forFormat("json")
                         .option("fail-on-missing-field", "false")
                         .option("ignore-parse-errors", "true")
                         .build())
                 .build());
-        tEnv.createTemporaryTable(outputTableName, TableDescriptor.forConnector("upsert-kafka")
+        String tableType = "MERGE_ON_READ";
+        tEnv.createTemporaryTable(outputTableName, TableDescriptor.forConnector("hudi")
                 .schema(kafkaSchema.preprocessedKafkaSourceSchema())
-                        .option("topic", outputTopic)
-                        .option("properties.bootstrap.servers", bootstrapServer)
-                        .option("key.format", "json")
-                        .option("value.format", "json")
+                        .option("path", "s3a://silver/test")
+                        .option("table.name", outputTableName)
+                        .option("table.type", tableType)
                 .build());
 
         String flattenQuery = "SELECT \n"
@@ -61,7 +63,17 @@ public class App {
                 + "FROM `" + sourceTableName + "`\n"
                 + "CROSS JOIN UNNEST(data) AS d(c, p, s, t, v)";
         Table flattenTable = tEnv.sqlQuery(flattenQuery);
+        String flattenTableName = "flatten_table";
+        tEnv.createTemporaryView(flattenTableName, flattenTable);
+        String deduplicateQuery = "SELECT symbol, price, volume, trade_type, unix_ts \n"
+                + "FROM (\n"
+                + "SELECT *, ROW_NUMBER() OVER (PARTITION BY symbol, volume, unix_ts ORDER BY price DESC) AS rn\n"
+                + "FROM " + flattenTableName
+                + " ) AS temp WHERE rn = 1";
+
         // Stream thì ko dùng wait. Phải dùng executeInsert thay vì insertInto
-        flattenTable.executeInsert(outputTableName);
+//        flattenTable.executeInsert(outputTableName);
+        Table deduplicateTable = tEnv.sqlQuery(deduplicateQuery);
+        deduplicateTable.executeInsert(outputTableName);
     }
 }

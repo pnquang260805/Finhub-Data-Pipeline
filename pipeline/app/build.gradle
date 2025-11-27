@@ -18,6 +18,12 @@ dependencies {
     // Dùng để viết unit test cho flink
     testImplementation 'org.apache.flink:flink-test-utils:1.20.2'
 
+    // Hudi + S3
+    // https://mvnrepository.com/artifact/org.apache.hudi/hudi-flink1.20-bundle
+    implementation 'org.apache.hudi:hudi-flink1.20-bundle:1.1.0'
+    implementation 'org.apache.flink:flink-s3-fs-hadoop:1.20.2'
+    implementation 'com.amazonaws:aws-java-sdk-bundle:1.12.794'
+
     implementation 'org.slf4j:slf4j-api:2.0.0'
     runtimeOnly 'org.slf4j:slf4j-simple:2.0.0'
 }

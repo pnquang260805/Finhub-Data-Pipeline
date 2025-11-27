@@ -1,5 +1,7 @@
 import json
 from confluent_kafka import Producer
+from datetime import datetime
+import random
 
 conf = {
     "bootstrap.servers": "localhost:9092",
@@ -8,6 +10,11 @@ conf = {
 
 producer = Producer(conf)
 
+symbols = ["AAPL", "AMZN", "META"]
+symbol = random.choice(symbols)
+ts = int(datetime.now().timestamp())
+price = round(random.random() * 1000, 2)
+
 data = {
     "data": [
         {
@@ -15,9 +22,9 @@ data = {
                 "1",
                 "8"
             ],
-            "p": 220.32,
-            "s": "AMZ",
-            "t": 1761230062740,
+            "p": price,
+            "s": symbol,
+            "t": ts,
             "v": 100
         },
         {
@@ -25,9 +32,9 @@ data = {
                 "1",
                 "8"
             ],
-            "p": 220.32,
-            "s": "AMZ",
-            "t": 1761230062740,
+            "p": price,
+            "s": symbol,
+            "t": ts,
             "v": 100
         }
     ],
