@@ -7,11 +7,9 @@ import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.FormatDescriptor;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.api.*;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.example.Shema.KafkaSchema;
 
 public class App {
@@ -36,6 +34,27 @@ public class App {
         String outputTableName = "preprocessed_table";
 
         KafkaSchema kafkaSchema = new KafkaSchema();
+
+        String catalogName = "iceberg";
+
+        String createCatalogQuery = "CREATE CATALOG " + catalogName + " WITH ("
+                + "'type'='iceberg',"
+                + "'catalog-impl'='org.apache.iceberg.nessie.NessieCatalog',"
+                + "'io-impl'='org.apache.iceberg.aws.s3.S3FileIO',"
+                + "'uri'='http://catalog:19120/api/v1',"
+                + "'authentication.type'='none',"
+                + "'ref'='main',"
+                + "'client.assume-role.region'='us-east-1',"
+                + "'warehouse' = 's3a://silver/',"
+                + "'s3.endpoint'='http://minio:9000',"
+                + "'s3.path-style-access'='true'"
+                + ")";
+        TableResult result = tEnv.executeSql(createCatalogQuery);
+        tEnv.useCatalog(catalogName);
+        tEnv.executeSql("CREATE DATABASE IF NOT EXISTS silver_db");
+        tEnv.executeSql("USE silver_db");
+        result.print();
+
         tEnv.createTemporaryTable(sourceTableName, TableDescriptor.forConnector("kafka")
                 .schema(kafkaSchema.kafkaSourceSchema())
                 .option("topic", inputTopic)
@@ -46,13 +65,24 @@ public class App {
                         .option("ignore-parse-errors", "true")
                         .build())
                 .build());
-        String tableType = "MERGE_ON_READ";
-        tEnv.createTemporaryTable(outputTableName, TableDescriptor.forConnector("hudi")
-                .schema(kafkaSchema.preprocessedKafkaSourceSchema())
-                        .option("path", "s3a://silver/test")
-                        .option("table.name", outputTableName)
-                        .option("table.type", tableType)
-                .build());
+
+        String createPreprocessedTable =
+                "CREATE TABLE IF NOT EXISTS " + outputTableName + " ("
+                        + "  symbol STRING NOT NULL,"
+                        + "  price DECIMAL(10, 2),"
+                        + "  volume BIGINT,"
+                        + "  trade_type STRING,"
+                        + "  unix_ts BIGINT,"
+                        + "  PRIMARY KEY (symbol) NOT ENFORCED"
+                        + ") "
+                        + "WITH ("
+                        + "  'format-version'='2',"
+                        + "  'write.format.default'='parquet'"
+                        + ")";
+
+        tEnv.executeSql(createPreprocessedTable);
+
+        tEnv.executeSql("SHOW TABLES");
 
         String flattenQuery = "SELECT \n"
                 + "s AS symbol, \n"

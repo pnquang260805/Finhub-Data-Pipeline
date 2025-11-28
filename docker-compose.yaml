@@ -57,6 +57,12 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         jobmanager.rpc.port: 6123
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - S3_ENDPOINT=http://minio:9000
+      - S3_PATH_STYLE_ACCESS=true
     deploy:
       resources:
         limits:
@@ -65,11 +71,6 @@ services:
     command: jobmanager
     volumes:
       - ./:/opt/flink/jobs
-      - ./conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
-      # For debug
-      - ./conf/log4j.properties:/opt/flink/conf/log4j.properties
-      - ./conf/log4j-cli.properties:/opt/flink/conf/log4j-cli.properties
-      - ./log:/opt/flink/log
 
   taskmanager:
     build:
@@ -79,17 +80,18 @@ services:
     depends_on:
       - jobmanager
     command: taskmanager
-    volumes:
-      - ./conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
-      # For debug
-      - ./conf/log4j.properties:/opt/flink/conf/log4j.properties
-      - ./conf/log4j-cli.properties:/opt/flink/conf/log4j-cli.properties
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 4
         jobmanager.rpc.port: 6123
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - S3_ENDPOINT=http://minio:9000
+      - S3_PATH_STYLE_ACCESS=true
     networks:
       - project-net
     deploy:
@@ -113,7 +115,8 @@ services:
     environment:
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=password
-      - MINIO_DOMAIN=minio
+      - MINIO_REGION_NAME=us-east-1
+      - MINIO_REGION=us-east-1
     networks:
       - project-net
     ports:
@@ -257,6 +260,14 @@ services:
       - "5000:3000"
     networks:
       - project-net
+
+  catalog:
+    image: projectnessie/nessie:0.67.0
+    container_name: catalog
+    networks:
+      - project-net
+    ports:
+      - "19120:19120"
 
   pushgateway:
     image: prom/pushgateway:v1.11.2
