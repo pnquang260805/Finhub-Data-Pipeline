@@ -22,7 +22,7 @@ public class KafkaSchema {
                 .build();
     }
 
-    public Schema preprocessedKafkaSourceSchema(){
+    public Schema kafkaProcessedSchema(){
         return Schema.newBuilder()
                 .column("symbol", DataTypes.STRING().notNull())
                 .column("price", DataTypes.DECIMAL(10, 2))

@@ -1,59 +1,52 @@
 package org.example;
 
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.kafka.source.KafkaSource;
-import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.*;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.example.Interfaces.CatalogService;
+import org.example.Service.FlinkService;
+import org.example.Service.IcebergCatalogService;
 import org.example.Shema.KafkaSchema;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class App {
     public static void main(String[] args) throws Exception {
+        FlinkService flinkService = new FlinkService();
+
         final String ACCESS_KEY = "admin";
         final String SECRET_KEY = "password";
+        Map<String, String> configs = new HashMap<>();
+        configs.put("fs.s3a.access.key", ACCESS_KEY);
+        configs.put("fs.s3a.secret.key", SECRET_KEY);
+        configs.put("fs.s3a.endpoint", "http://minio:9000");
+        configs.put("fs.s3a.path.style.access", "true");
+        configs.put("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
 
-        Configuration conf = new Configuration();
-        conf.setString("fs.s3a.access.key", ACCESS_KEY);
-        conf.setString("fs.s3a.secret.key", SECRET_KEY);
-        conf.setString("fs.s3a.endpoint", "http://minio:9000");
-        conf.setString("fs.s3a.path.style.access", "true");
-        conf.setString("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"); // !!!
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
-        EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
+        flinkService.setString(configs);
+        flinkService.createTableEnv();
+        StreamTableEnvironment tEnv = flinkService.getTEnv();
+
+        CatalogService catalogService = new IcebergCatalogService(flinkService);
 
         String bootstrapServer = "kafka:29092";
         String inputTopic = "raw-trade-topic";
         String outputTopic = "preprocessed-trade-topic";
         String sourceTableName = "source_table";
-        String outputTableName = "preprocessed_table";
+        String icebergProcessedTable = "iceberg_processed_table";
+        String kafkaProcessedTable = "kafka_processed_table";
 
         KafkaSchema kafkaSchema = new KafkaSchema();
 
+        // Tạo catalog trước
         String catalogName = "iceberg";
+        String warehouseDir = "s3a://silver/";
+        String silverDbName = "silver_db";
 
-        String createCatalogQuery = "CREATE CATALOG " + catalogName + " WITH ("
-                + "'type'='iceberg',"
-                + "'catalog-impl'='org.apache.iceberg.nessie.NessieCatalog',"
-                + "'io-impl'='org.apache.iceberg.aws.s3.S3FileIO',"
-                + "'uri'='http://catalog:19120/api/v1',"
-                + "'authentication.type'='none',"
-                + "'ref'='main',"
-                + "'client.assume-role.region'='us-east-1',"
-                + "'warehouse' = 's3a://silver/',"
-                + "'s3.endpoint'='http://minio:9000',"
-                + "'s3.path-style-access'='true'"
-                + ")";
-        TableResult result = tEnv.executeSql(createCatalogQuery);
-        tEnv.useCatalog(catalogName);
-        tEnv.executeSql("CREATE DATABASE IF NOT EXISTS silver_db");
+        catalogService.createCatalog(catalogName, warehouseDir);
+        tEnv.executeSql("USE CATALOG " + catalogName);
+        catalogService.createDatabase(silverDbName);
         tEnv.executeSql("USE silver_db");
-        result.print();
 
         tEnv.createTemporaryTable(sourceTableName, TableDescriptor.forConnector("kafka")
                 .schema(kafkaSchema.kafkaSourceSchema())
@@ -66,8 +59,17 @@ public class App {
                         .build())
                 .build());
 
+        tEnv.createTemporaryTable(kafkaProcessedTable, TableDescriptor.forConnector("upsert-kafka")
+                .schema(kafkaSchema.kafkaProcessedSchema())
+                .option("topic", outputTopic)
+                .option("properties.bootstrap.servers", bootstrapServer)
+                .option("key.format", "json")
+                .option("value.format", "json")
+                .build()
+        );
+
         String createPreprocessedTable =
-                "CREATE TABLE IF NOT EXISTS " + outputTableName + " ("
+                "CREATE TABLE IF NOT EXISTS " + icebergProcessedTable + " ("
                         + "  symbol STRING NOT NULL,"
                         + "  price DECIMAL(10, 2),"
                         + "  volume BIGINT,"
@@ -102,8 +104,14 @@ public class App {
                 + " ) AS temp WHERE rn = 1";
 
         // Stream thì ko dùng wait. Phải dùng executeInsert thay vì insertInto
-//        flattenTable.executeInsert(outputTableName);
+//        flattenTable.executeInsert(icebergProcessedTable);
         Table deduplicateTable = tEnv.sqlQuery(deduplicateQuery);
-        deduplicateTable.executeInsert(outputTableName);
+
+        // Create statement set
+        StatementSet statementSet = tEnv.createStatementSet();
+
+        statementSet.addInsert(kafkaProcessedTable, deduplicateTable);
+        statementSet.addInsert(icebergProcessedTable, deduplicateTable);
+        statementSet.execute();
     }
 }
