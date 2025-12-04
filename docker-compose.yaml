@@ -269,10 +269,14 @@ services:
     ports:
       - "19120:19120"
 
-  pushgateway:
-    image: prom/pushgateway:v1.11.2
-    container_name: pushgateway
+  trino:
+    image: trinodb/trino:477
+    container_name: trino
+    ports:
+      - "8083:8080"
+    depends_on:
+      - minio
+    volumes:
+      - ./conf/trino/etc:/etc/trino
     networks:
       - project-net
-    ports:
-      - "9091:9091"

@@ -1,6 +1,5 @@
 package org.example.Service;
 
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.example.Interfaces.CatalogService;
 
