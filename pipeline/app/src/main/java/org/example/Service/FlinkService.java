@@ -23,6 +23,7 @@ public class FlinkService {
 
     public void createTableEnv(){
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(this.config);
+        env.enableCheckpointing(5000);
         EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
         this.tEnv = StreamTableEnvironment.create(env, settings);
     }
