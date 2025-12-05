@@ -35,6 +35,7 @@ public class App {
         String sourceTableName = "source_table";
         String icebergProcessedTable = "iceberg_processed_table";
         String kafkaProcessedTable = "kafka_processed_table";
+        String goldTable = "stock_detail";
 
         KafkaSchema kafkaSchema = new KafkaSchema();
 
@@ -102,9 +103,6 @@ public class App {
                 + "SELECT *, ROW_NUMBER() OVER (PARTITION BY symbol, volume, unix_ts ORDER BY price DESC) AS rn\n"
                 + "FROM " + flattenTableName
                 + " ) AS temp WHERE rn = 1";
-
-        // Stream thì ko dùng wait. Phải dùng executeInsert thay vì insertInto
-//        flattenTable.executeInsert(icebergProcessedTable);
         Table deduplicateTable = tEnv.sqlQuery(deduplicateQuery);
 
         // Create statement set
@@ -112,6 +110,21 @@ public class App {
 
         statementSet.addInsert(kafkaProcessedTable, deduplicateTable);
         statementSet.addInsert(icebergProcessedTable, deduplicateTable);
+
+        String createGoldTable =
+                "CREATE TABLE IF NOT EXISTS " + goldTable + " ("
+                        + "  symbol STRING NOT NULL,"
+                        + "  price DECIMAL(10, 2),"
+                        + "  volume BIGINT,"
+                        + "  trade_type STRING,"
+                        + "  unix_ts BIGINT,"
+                        + "  PRIMARY KEY (symbol) NOT ENFORCED"
+                        + ") "
+                        + "WITH ("
+                        + "  'format-version'='2',"
+                        + "  'write.format.default'='parquet'"
+                        + ")";
+
         statementSet.execute();
     }
 }

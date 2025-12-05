@@ -280,3 +280,10 @@ services:
       - ./conf/trino/etc:/etc/trino
     networks:
       - project-net
+
+  cron:
+    build: 
+      context: ./daily_call_data
+      dockerfile: Dockerfile
+    networks:
+      - project-net
