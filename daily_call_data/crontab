@@ -1,4 +1,0 @@
-SHELL=/bin/bash
-PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
-
-1 4 * * /call_data/run_quote.sh >> /call_data/cron.log 2>&1

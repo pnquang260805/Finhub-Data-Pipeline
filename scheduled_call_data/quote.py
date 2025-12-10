@@ -5,12 +5,11 @@ import json
 from dotenv import load_dotenv
 from datetime import datetime
 
-# S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
-# S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
-# FINNHUB_TOKEN = os.getenv("FINNHUB_TOKEN")
-FINNHUB_TOKEN = "d40ebm1r01qqo3qhj6o0d40ebm1r01qqo3qhj6og"
-S3_ACCESS_KEY = "admin"
-S3_SECRET_KEY = "password"
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
+FINNHUB_TOKEN = os.getenv("FINNHUB_TOKEN")
+# S3_ACCESS_KEY = "admin"
+# S3_SECRET_KEY = "password"
 ENDPOINT = "http://minio:9000"
 
 

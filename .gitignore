@@ -5,6 +5,8 @@
 **/note.txt
 # **/*.json
 test*
+*.json
+!/bootstrap
 /jars
 **/__pycache__/
 .vscode/
