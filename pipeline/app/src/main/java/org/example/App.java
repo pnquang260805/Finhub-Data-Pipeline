@@ -33,7 +33,7 @@ public class App {
         String inputTopic = "raw-trade-topic";
         String outputTopic = "preprocessed-trade-topic";
         String sourceTableName = "source_table";
-        String icebergProcessedTable = "iceberg_processed_table";
+        String icebergProcessedTable = "stock_processed_table";
         String kafkaProcessedTable = "kafka_processed_table";
         String goldTable = "stock_detail";
 
@@ -41,13 +41,11 @@ public class App {
 
         // Tạo catalog trước
         String catalogName = "iceberg";
-        String warehouseDir = "s3a://silver/";
+        String silverWarehouse = "s3a://silver/";
         String silverDbName = "silver_db";
 
-        catalogService.createCatalog(catalogName, warehouseDir);
-        tEnv.executeSql("USE CATALOG " + catalogName);
-        catalogService.createDatabase(silverDbName);
-        tEnv.executeSql("USE silver_db");
+        catalogService.createCatalog(catalogName, silverWarehouse);
+        catalogService.createDatabase(catalogName, silverDbName);
 
         tEnv.createTemporaryTable(sourceTableName, TableDescriptor.forConnector("kafka")
                 .schema(kafkaSchema.kafkaSourceSchema())
@@ -69,8 +67,9 @@ public class App {
                 .build()
         );
 
+        String silverIcebergProcessedTable = catalogService.createFullPath(catalogName, silverDbName, icebergProcessedTable);
         String createPreprocessedTable =
-                "CREATE TABLE IF NOT EXISTS " + icebergProcessedTable + " ("
+                "CREATE TABLE IF NOT EXISTS " + silverIcebergProcessedTable + " ("
                         + "  symbol STRING NOT NULL,"
                         + "  price DECIMAL(10, 2),"
                         + "  volume BIGINT,"
@@ -109,21 +108,8 @@ public class App {
         StatementSet statementSet = tEnv.createStatementSet();
 
         statementSet.addInsert(kafkaProcessedTable, deduplicateTable);
-        statementSet.addInsert(icebergProcessedTable, deduplicateTable);
-
-        String createGoldTable =
-                "CREATE TABLE IF NOT EXISTS " + goldTable + " ("
-                        + "  symbol STRING NOT NULL,"
-                        + "  price DECIMAL(10, 2),"
-                        + "  volume BIGINT,"
-                        + "  trade_type STRING,"
-                        + "  unix_ts BIGINT,"
-                        + "  PRIMARY KEY (symbol) NOT ENFORCED"
-                        + ") "
-                        + "WITH ("
-                        + "  'format-version'='2',"
-                        + "  'write.format.default'='parquet'"
-                        + ")";
+        // Add to silver
+        statementSet.addInsert(silverIcebergProcessedTable, deduplicateTable);
 
         statementSet.execute();
     }

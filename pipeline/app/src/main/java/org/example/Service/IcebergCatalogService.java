@@ -28,8 +28,13 @@ public class IcebergCatalogService implements CatalogService {
     }
 
     @Override
-    public void createDatabase(String dbName) {
-        String query = "CREATE DATABASE IF NOT EXISTS " + dbName;
+    public void createDatabase(String catalog, String dbName) {
+        String query = "CREATE DATABASE IF NOT EXISTS " + catalog + "." + dbName;
         this.tEnv.executeSql(query);
+    }
+
+    @Override
+    public String createFullPath(String catalog, String db, String table){
+        return String.join(".", catalog, db, table);
     }
 }
