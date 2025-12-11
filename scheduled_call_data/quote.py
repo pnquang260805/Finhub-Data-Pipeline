@@ -5,8 +5,8 @@ import json
 from dotenv import load_dotenv
 from datetime import datetime
 
-S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
-S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
+S3_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
+S3_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 FINNHUB_TOKEN = os.getenv("FINNHUB_TOKEN")
 # S3_ACCESS_KEY = "admin"
 # S3_SECRET_KEY = "password"
