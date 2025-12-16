@@ -97,8 +97,8 @@ services:
     depends_on:
       - kafka
     command: >
-      sh -c "/opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic raw-trade-topic --bootstrap-server kafka:29092 &&
-            /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic preprocessed-trade-topic --bootstrap-server kafka:29092"
+      sh -c "/opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic finnhub-stock-topic --bootstrap-server kafka:29092 &&
+            /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --topic stock-silver-topic --bootstrap-server kafka:29092"
     networks:
       - project-net
   minio:
@@ -137,12 +137,10 @@ services:
     entrypoint: |
       /bin/sh -c "
       until (/usr/bin/mc alias set minio http://minio:9000 admin password) do echo '...waiting...' && sleep 1; done;
-      /usr/bin/mc mb --ignore-existing minio/bronze;
-      /usr/bin/mc mb --ignore-existing minio/silver;
-      /usr/bin/mc mb --ignore-existing minio/gold;
-      /usr/bin/mc policy set public minio/bronze;
-      /usr/bin/mc policy set public minio/silver;
-      /usr/bin/mc policy set public minio/gold;
+      /usr/bin/mc mb --ignore-existing minio/tables;
+      /usr/bin/mc mb --ignore-existing minio/files;
+      /usr/bin/mc policy set public minio/tables;
+      /usr/bin/mc policy set public minio/files;
       tail -f /dev/null
       "
 

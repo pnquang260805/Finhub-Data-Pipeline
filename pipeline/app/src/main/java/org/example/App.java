@@ -1,11 +1,12 @@
 package org.example;
 
 import org.apache.flink.table.api.*;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.example.Config.IcebergName;
 import org.example.Interfaces.CatalogService;
+import org.example.Service.EnvironmentSetup;
 import org.example.Service.FlinkService;
 import org.example.Service.IcebergCatalogService;
-import org.example.Shema.KafkaSchema;
+import org.example.Service.StockTransformToSilver;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,92 +26,17 @@ public class App {
 
         flinkService.setString(configs);
         flinkService.createTableEnv();
-        StreamTableEnvironment tEnv = flinkService.getTEnv();
+        // Pipeline Variables
+        String catalogName = IcebergName.CATALOG.getValue();
+        String warehouse = IcebergName.WAREHOUSE.getValue();
+        String schemaName = IcebergName.SCHEMA.getValue();
 
+        // Setup pipeline
         CatalogService catalogService = new IcebergCatalogService(flinkService);
+        EnvironmentSetup setup = new EnvironmentSetup(flinkService, catalogService);
+        setup.execute();
 
-        String bootstrapServer = "kafka:29092";
-        String inputTopic = "raw-trade-topic";
-        String outputTopic = "preprocessed-trade-topic";
-        String sourceTableName = "source_table";
-        String icebergProcessedTable = "stock_processed_table";
-        String kafkaProcessedTable = "kafka_processed_table";
-        String goldTable = "stock_detail";
-
-        KafkaSchema kafkaSchema = new KafkaSchema();
-
-        // Tạo catalog trước
-        String catalogName = "iceberg";
-        String silverWarehouse = "s3a://silver/";
-        String silverDbName = "silver_db";
-
-        catalogService.createCatalog(catalogName, silverWarehouse);
-        catalogService.createDatabase(catalogName, silverDbName);
-
-        tEnv.createTemporaryTable(sourceTableName, TableDescriptor.forConnector("kafka")
-                .schema(kafkaSchema.kafkaSourceSchema())
-                .option("topic", inputTopic)
-                .option("properties.bootstrap.servers", bootstrapServer)
-                .option("scan.startup.mode", "earliest-offset")
-                .format(FormatDescriptor.forFormat("json")
-                        .option("fail-on-missing-field", "false")
-                        .option("ignore-parse-errors", "true")
-                        .build())
-                .build());
-
-        tEnv.createTemporaryTable(kafkaProcessedTable, TableDescriptor.forConnector("upsert-kafka")
-                .schema(kafkaSchema.kafkaProcessedSchema())
-                .option("topic", outputTopic)
-                .option("properties.bootstrap.servers", bootstrapServer)
-                .option("key.format", "json")
-                .option("value.format", "json")
-                .build()
-        );
-
-        String silverIcebergProcessedTable = catalogService.createFullPath(catalogName, silverDbName, icebergProcessedTable);
-        String createPreprocessedTable =
-                "CREATE TABLE IF NOT EXISTS " + silverIcebergProcessedTable + " ("
-                        + "  symbol STRING NOT NULL,"
-                        + "  price DECIMAL(10, 2),"
-                        + "  volume BIGINT,"
-                        + "  trade_type STRING,"
-                        + "  unix_ts BIGINT,"
-                        + "  PRIMARY KEY (symbol) NOT ENFORCED"
-                        + ") "
-                        + "WITH ("
-                        + "  'format-version'='2',"
-                        + "  'write.format.default'='parquet'"
-                        + ")";
-
-        tEnv.executeSql(createPreprocessedTable);
-
-        tEnv.executeSql("SHOW TABLES");
-
-        String flattenQuery = "SELECT \n"
-                + "s AS symbol, \n"
-                + "p AS price, \n"
-                + "v AS volume, \n"
-                + "`type` AS trade_type, \n"
-                + "t AS unix_ts \n"
-                + "FROM `" + sourceTableName + "`\n"
-                + "CROSS JOIN UNNEST(data) AS d(c, p, s, t, v)";
-        Table flattenTable = tEnv.sqlQuery(flattenQuery);
-        String flattenTableName = "flatten_table";
-        tEnv.createTemporaryView(flattenTableName, flattenTable);
-        String deduplicateQuery = "SELECT symbol, price, volume, trade_type, unix_ts \n"
-                + "FROM (\n"
-                + "SELECT *, ROW_NUMBER() OVER (PARTITION BY symbol, volume, unix_ts ORDER BY price DESC) AS rn\n"
-                + "FROM " + flattenTableName
-                + " ) AS temp WHERE rn = 1";
-        Table deduplicateTable = tEnv.sqlQuery(deduplicateQuery);
-
-        // Create statement set
-        StatementSet statementSet = tEnv.createStatementSet();
-
-        statementSet.addInsert(kafkaProcessedTable, deduplicateTable);
-        // Add to silver
-        statementSet.addInsert(silverIcebergProcessedTable, deduplicateTable);
-
-        statementSet.execute();
+        StockTransformToSilver transform = new StockTransformToSilver(flinkService, catalogName, warehouse, schemaName);
+        transform.execute();
     }
 }

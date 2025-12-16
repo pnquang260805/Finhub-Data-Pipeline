@@ -19,7 +19,7 @@ load_dotenv()
 API_KEY = os.getenv("FINNHUB_TOKEN")
 print(API_KEY)
 
-topic = "raw-trade-topic"
+topic = "finnhub-stock-topic"
 
 
 def delivery_report(err, msg):
@@ -63,9 +63,9 @@ def on_open(ws):
     print("Start connect")
     ws.send(json.dumps({"type": "subscribe", "symbol": "AAPL"}))
     ws.send(json.dumps({"type": "subscribe", "symbol": "AMZN"}))
-    ws.send(json.dumps({"type": "subscribe", "symbol": "MSFT"}))
-    ws.send(json.dumps({"type": "subscribe", "symbol": "GOOGL"}))
-    ws.send(json.dumps({"type": "subscribe", "symbol": "META"}))
+    # ws.send(json.dumps({"type": "subscribe", "symbol": "MSFT"}))
+    # ws.send(json.dumps({"type": "subscribe", "symbol": "GOOGL"}))
+    # ws.send(json.dumps({"type": "subscribe", "symbol": "META"}))
 
 
 socket = f"wss://ws.finnhub.io?token={API_KEY}"
