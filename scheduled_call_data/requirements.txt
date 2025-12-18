@@ -4,3 +4,4 @@ boto3
 pandas
 pyarrow
 fastparquet
+pyiceberg[s3fs,sql-sqlite]

@@ -44,7 +44,7 @@ def gen_msg():
     }
     return data
 
-topic = "raw-trade-topic"
+topic = "finnhub-stock-topic"
 
 
 def delivery_report(err, msg):

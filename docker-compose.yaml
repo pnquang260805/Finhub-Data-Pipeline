@@ -220,12 +220,26 @@ services:
       - project-net
 
   catalog:
-    image: projectnessie/nessie:0.67.0
+    image: ghcr.io/projectnessie/nessie:0.106.0-java
     container_name: catalog
     networks:
       - project-net
     ports:
       - "19120:19120"
+    environment:
+      - nessie.version.store.type=IN_MEMORY
+      - nessie.catalog.default-warehouse=warehouse
+      - nessie.catalog.warehouses.warehouse.location=s3://tables/
+      - nessie.catalog.service.s3.default-options.endpoint=http://minio:9000/
+      - nessie.catalog.service.s3.default-options.access-key=urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
+      - nessie.catalog.service.s3.default-options.path-style-access=true
+      - nessie.catalog.service.s3.default-options.auth-type=STATIC
+      - nessie.catalog.secrets.access-key.name=admin
+      - nessie.catalog.secrets.access-key.secret=password
+      - nessie.catalog.service.s3.default-options.region=us-east-1
+      - nessie.server.authentication.enabled=false
+    volumes:
+      - ./docker-data/nessie:/opt/nessie/data
 
   trino:
     image: trinodb/trino:477
@@ -240,6 +254,7 @@ services:
       - project-net
 
   cron:
+    container_name: cron
     build: 
       context: ./scheduled_call_data
       dockerfile: Dockerfile

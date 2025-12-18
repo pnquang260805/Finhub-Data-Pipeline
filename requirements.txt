@@ -5,3 +5,4 @@ apache-flink==2.1.0
 confluent-kafka==2.3.0
 prometheus-client
 pandas
+pyiceberg[nessie]

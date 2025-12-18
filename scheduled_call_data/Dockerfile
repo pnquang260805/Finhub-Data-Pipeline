@@ -1,6 +1,6 @@
 FROM python:3.13.9-slim
 
-RUN apt-get update -y && apt-get install cron dos2unix -y && systemctl enable cron
+RUN apt-get update -y && apt-get install cron dos2unix nano -y && systemctl enable cron
 
 WORKDIR /call_data
 COPY . .
