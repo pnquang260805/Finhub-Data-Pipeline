@@ -47,6 +47,8 @@ services:
       context: .
       dockerfile: ./dockerfiles/flink.dockerfile
     container_name: jobmanager
+    depends_on:
+      - init-table
     networks:
       - project-net
     ports:
@@ -262,6 +264,8 @@ services:
       - project-net
     env_file:
       - ./.env
+    depends_on:
+      - init-table
 
   zookeeper:
     image: zookeeper:3.8.3
@@ -309,3 +313,15 @@ services:
     networks:
       - project-net
     command: /home/ranger/scripts/ranger.sh
+
+  init-table:
+    build: 
+      context: ./init_table
+      dockerfile: Dockerfile
+    networks:
+      - project-net
+    depends_on:
+      - minio
+      - catalog
+    env_file:
+      - ./.env

@@ -40,11 +40,9 @@ if __name__ == "__main__":
     cleaned_data = etl_symbol.clean_data(raw_data)
     arrow_table = pa.Table.from_pandas(cleaned_data)
 
-    if nessie_catalog.check_namespace_exists("dbo") is False:
-        nessie_catalog.create_namespace("dbo")
     try:
         table = catalog.load_table(f"{namespace}.{table_name}")
-    except:
-        table = catalog.create_table(f"{namespace}.{table_name}", arrow_table.schema)
+        table.append(arrow_table)
+    except Exception as e:
+        print(f"Error when loading dim_symbol with {e}")
     
-    table.append(arrow_table)

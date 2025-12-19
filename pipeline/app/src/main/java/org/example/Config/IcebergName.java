@@ -4,7 +4,7 @@ public enum IcebergName {
     FINNHUB_STOCK_SOURCE_TABLE("source_table"),
     STOCK_SILVER_TABLE("stock_silver"),
     CATALOG("iceberg"),
-    WAREHOUSE("s3a://tables/"),
+    WAREHOUSE("s3://tables/"),
     SCHEMA("dbo"),
     ;
     private final String value;
