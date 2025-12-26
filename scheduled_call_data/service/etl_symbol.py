@@ -33,7 +33,10 @@ class ETLSymbol:
         new_col_names = {name: self.__standardize_columns(name) for name in df.columns}
         new_col_names["shareClassFIGI"] = "share_class_figi"
         renamed_df = cleaned_df.rename(columns=new_col_names)
-        renamed_df["fetch_date"] = datetime.now()
+
+        renamed_df["fetch_date"] = datetime.now().isoformat()
+        renamed_df = renamed_df.dropna(subset=['symbol'])
+        renamed_df["symbol"] = renamed_df["symbol"].astype(str)
 
         return renamed_df
     

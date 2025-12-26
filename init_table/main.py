@@ -47,9 +47,10 @@ class CatalogService:
             pa.field("figi", pa.string(), nullable=True),
             pa.field("mic", pa.string(), nullable=True),
             pa.field("share_class_figi", pa.string(), nullable=True),
-            pa.field("symbol", pa.string(), nullable=False),  # Giả định symbol là khóa chính (không null)
+            pa.field("symbol", pa.string(), nullable=True), 
             pa.field("symbol_2", pa.string(), nullable=True),
-            pa.field("type", pa.string(), nullable=True)
+            pa.field("type", pa.string(), nullable=True),
+            pa.field("fetch_date", pa.string(), nullable=True)
         ])
         try:
             self.catalog.create_table(table_identifier, schema=stock_schema)

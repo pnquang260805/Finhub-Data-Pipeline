@@ -214,12 +214,17 @@ services:
   grafana:
     image: grafana/grafana:12.3.0-19020365962
     container_name: grafana
+    user: "0"
     volumes:
       - ./docker-data/grafana:/var/lib/grafana
+      - ./docker-data/grafana-plugins:/var/lib/grafana/plugins/trino
     ports:
       - "5000:3000"
     networks:
       - project-net
+    environment:
+      - GF_PLUGINS_PREINSTALL=trino-datasource
+      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=trino-datasource
 
   catalog:
     image: ghcr.io/projectnessie/nessie:0.106.0-java

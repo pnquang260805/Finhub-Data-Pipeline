@@ -14,21 +14,22 @@ ENDPOINT = "http://minio:9000"
 
 
 s3 = boto3.client('s3', aws_access_key_id=S3_ACCESS_KEY, aws_secret_access_key=S3_SECRET_KEY, endpoint_url=ENDPOINT)
-symbol = "AAPL"
-url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={FINNHUB_TOKEN}"
+symbols = ["AAPL"]
 
-try:
-    r = requests.get(url)
-    data = r.json()
-    if "error" in data:
-        print(data)
-    else:
-        str_data = json.dumps(data)
-        datetime_path = datetime.now().strftime("%Y/%m/%d")
-        datetime_unix = datetime.now().timestamp()
-        try:
-            s3.put_object(Bucket="bronze", Key=f"quote/{datetime_path}/{datetime_unix}.json", Body=str_data)
-        except Exception as e:
-            print(f"Error S3: {e}")
-except Exception as e:
-    print(e)
+for symbol in symbols:
+    url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={FINNHUB_TOKEN}"
+    try:
+        r = requests.get(url)
+        data = r.json()
+        if "error" in data:
+            print(data)
+        else:
+            str_data = json.dumps(data)
+            datetime_path = datetime.now().strftime("%Y/%m/%d")
+            datetime_unix = datetime.now().timestamp()
+            try:
+                s3.put_object(Bucket="files", Key=f"quote/{symbol}/{datetime_path}/{datetime_unix}.json", Body=str_data)
+            except Exception as e:
+                print(f"Error S3: {e}")
+    except Exception as e:
+        print(e)
