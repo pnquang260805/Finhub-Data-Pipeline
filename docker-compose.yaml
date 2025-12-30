@@ -272,53 +272,6 @@ services:
     depends_on:
       - init-table
 
-  zookeeper:
-    image: zookeeper:3.8.3
-    container_name: zookeeper
-    ports:
-      - "2181:2181"
-    networks:
-      - project-net
-
-  solr:
-    image: solr:9.9.0
-    container_name: solr
-    ports:
-      - "8983:8983"
-    networks:
-      - project-net
-  
-  ranger-db:
-    image: apache/ranger-db:2.7.0
-    container_name: ranger-db
-    networks:
-      project-net:
-        aliases:
-          - ranger-db
-    healthcheck:
-      test: ["CMD-SHELL", "su -c 'pg_isready -q' postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-  
-  ranger:
-    image: apache/ranger:2.7.0
-    container_name: ranger
-    ports:
-      - "6080:6080"
-    environment:
-      - RANGER_DB_TYPE=postgres
-    depends_on:
-      zookeeper:
-        condition: service_started  
-      ranger-db:
-        condition: service_healthy
-      solr:
-        condition: service_started
-    networks:
-      - project-net
-    command: /home/ranger/scripts/ranger.sh
-
   init-table:
     build: 
       context: ./init_table

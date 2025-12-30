@@ -19,16 +19,14 @@ ENDPOINT = "http://minio:9000"
 
 if __name__ == "__main__":
     year = datetime.now().strftime("%Y")
-    table_name = "dim_symbol"
+    table_name = "symbol"
     catalog_name =  "iceberg"
     namespace = "dbo"
-    table_name = "dim_symbol"
 
     s3 = S3Service(S3_ACCESS_KEY, S3_SECRET_KEY)
-    etl_symbol = ETLSymbol(FINNHUB_TOKEN, s3)
+    etl_symbol = ETLSymbol(FINNHUB_TOKEN)
     nessie_catalog = NessieCatalog()
     # Init catalog
-    nessie_catalog.init_catalog()
     catalog = nessie_catalog.get_catalog()
 
     raw_data = etl_symbol.fetch_data()

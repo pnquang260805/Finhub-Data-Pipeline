@@ -7,9 +7,8 @@ from datetime import datetime
 from service.s3_service import S3Service
 
 class ETLSymbol:
-    def __init__(self, finnhub_token : str, s3_service : S3Service):
+    def __init__(self, finnhub_token : str):
         self.url = f"https://finnhub.io/api/v1/stock/symbol?exchange=US&token={finnhub_token}"
-        self.s3_service = s3_service
 
     def fetch_data(self) -> dict:
         try:
@@ -40,6 +39,4 @@ class ETLSymbol:
 
         return renamed_df
     
-    def write_to_iceberg(self, df : pd.DataFrame, table_name : str, catalog : str) -> None:
-        df.to_iceberg(table_name, catalog_name=catalog)
 

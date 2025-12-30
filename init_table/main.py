@@ -5,6 +5,7 @@ from typing import *
 from dotenv import load_dotenv
 from pyiceberg.catalog import load_catalog, Catalog
 from dataclasses import dataclass
+from pyiceberg.exceptions import TableAlreadyExistsError
 
 load_dotenv()
 
@@ -34,11 +35,13 @@ class CatalogService:
         ])
         try:
             self.catalog.create_table(table_identifier, schema, properties=properties)
+        except TableAlreadyExistsError:
+            print("Table stock already exist")
         except Exception as e:
             print(f"Error when create stock silver table with {e}")
             raise(e)
         
-    def create_dim_symbol_gold(self, table_name : str = "dim_symbol", namespace_name : str = "dbo"):
+    def create_dim_symbol_gold(self, table_name : str = "symbol", namespace_name : str = "dbo"):
         table_identifier  = ".".join([namespace_name, table_name])
         stock_schema = pa.schema([
             pa.field("currency", pa.string(), nullable=True),
@@ -54,10 +57,32 @@ class CatalogService:
         ])
         try:
             self.catalog.create_table(table_identifier, schema=stock_schema)
+        except TableAlreadyExistsError:
+            print("Table symbol already exist")
         except Exception as e:
-            print(f"Error when create dim_symbol with {e}")
+            print(f"Error when create symbol with {e}")
             raise(e)
 
+    def create_quote(self, table_name : str = "quote", namespace_name : str = "dbo"):
+        table_identifier  = ".".join([namespace_name, table_name])
+        schema = pa.schema([
+            pa.field("close", pa.float64(), nullable=True),
+            pa.field("change", pa.float64(), nullable=True),
+            pa.field("change_percentage", pa.float64(), nullable=True),
+            pa.field("high", pa.float64(), nullable=True),
+            pa.field("low", pa.float64(), nullable=True),
+            pa.field("open", pa.float64(), nullable=True),
+            pa.field("previous_close", pa.float64(), nullable=True),
+            pa.field("time", pa.string(), nullable=True),
+            pa.field("symbol", pa.string(), nullable=True),
+        ])
+        try:
+            self.catalog.create_table(table_identifier, schema=schema)
+        except TableAlreadyExistsError:
+            print("Table quote already exist")
+        except Exception as e:
+            print(f"Error when create quote with {e}")
+            raise(e)
 
 class main():
     ENDPOINT = "http://minio:9000"
@@ -79,6 +104,7 @@ class main():
         catalog_service.create_namespace(namespace_name)
         catalog_service.create_dim_symbol_gold()
         catalog_service.create_stock_silver_table()
+        catalog_service.create_quote()
     except Exception as e:
         print(f"Error {e} ===============================================")
         raise(e)
