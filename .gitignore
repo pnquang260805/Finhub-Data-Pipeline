@@ -6,7 +6,7 @@
 # **/*.json
 test*
 *.json
-!/bootstrap
+!/bootstrap/*
 /jars
 **/__pycache__/
 .vscode/
